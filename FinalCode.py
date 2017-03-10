@@ -16,7 +16,6 @@ from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.svm import LinearSVC
@@ -45,10 +44,10 @@ def bestClassifier(Results):
     ind_max = 0 
     max_acc = Results[0][1]
     for i in range(1,len(Results)):
-        print  float(Results[i][1])
-        print max_acc
-        print  float(Results[i][1]) > max_acc
-        print ("\n\n")
+#        print  float(Results[i][1])
+#        print max_acc
+#        print  float(Results[i][1]) > max_acc
+#        print ("\n\n")
         if (float(Results[i][1]) > max_acc):
             max_acc = Results[i][1]
             ind_max = i
@@ -133,7 +132,10 @@ if __name__== '__main__':
     
     
     
-    """ part 1 aka question 2 : we are going to train a LR with default params"""
+    
+    """I. Logistic regression with default parameters"""
+    
+    
     
     
     #fit and predit 
@@ -149,7 +151,8 @@ if __name__== '__main__':
     
     
     
-    """ part 2 aka question 3. : increase the accuracy of our LR"""
+    """ II. Experiments with parameter C and penalty"""
+    
     
     
     
@@ -211,7 +214,11 @@ if __name__== '__main__':
     
     
     
-    """3rd part aka question 4 : preprocessing and cross-validate"""
+    
+    
+    """III. Preprocessing and Cross-validation"""
+    
+    
     
     
     pca = decomposition.PCA()
@@ -235,7 +242,9 @@ if __name__== '__main__':
     
     
     
-    """4th part aka question 6 : ocustomer meeting task """
+    """IV. Customer Tasks """
+    
+    
     """ The main objectives was to detect the best histone markers by making a features selection 
     we choose to do it in two phase, the first with rfecv and also with random forest"""
     
@@ -245,12 +254,26 @@ if __name__== '__main__':
     
     
     """-> Features selection with random forest estimator"""
-
+    
+    clf_rf = RandomForestClassifier(n_estimators = 100)
+    clf_rf.fit(x_train, y_train)
+    importances = clf_rf.feature_importances_
+    std = np.std([tree.feature_importances_ for tree in clf_rf.estimators_],axis=0)
+    indices = np.argsort(importances)[::-1]
+    
+    print("Feature ranking:")
+    proba = [0] * 5
+    for f in range(x_train.shape[1]):
+        #each line in proba correspond to one histone marker
+        print("%d. Histone %d (%f)" % (f + 1, indices[f] % 5, importances[indices[f]]))
+        proba[indices[f] % 5]+=importances[indices[f]]
+    print(proba)
+    print(sum(proba))
     
     
     """-> Features selection with RFECV with our logistic regression classifier as estimator"""
     
-    rfecv = rfe(estimator=clf,step=50,verbose = 1,cv=10)
+    rfecv = rfe(estimator=XGBClassifier(n_estimators=650,max_depth=18),step=50,verbose = 1,cv=10)
     rfecv.fit(x_train, y_train)
     rfecv_scores = rfecv.grid_scores_
 
@@ -290,16 +313,30 @@ if __name__== '__main__':
     histone_marker.append(['H3K27me3',nb_selected_features])
     
     #Let's print the result
+    percentage_hist= 0
     print("Proportion of selected features from each histone marker")
-    for i in range(4):
-        print("%s : %f"%(histone_marker[i][0],histone_marker[i][1]/5))
-        
-        
+    for i in range(5):
+        value = histone_marker[i][1]/2.5
+        print("%s : %f"%(histone_marker[i][0],value))
+        percentage_hist += value
+    print ("Total  : %f " %percentage_hist)
    
         
+    
+    
+    
+    
+    
         
 
-    """ 5th part aka question 5 : test with other classifiers"""
+    """ V. Improvement of the accuracy with different classifiers"""
+    
+    
+    
+    
+    
+    
+    
    
 #First step : training the classifier seen in class
     classifiers1 = [(RandomForestClassifier(), "Random Forest"),(ExtraTreesClassifier(), "Extra-Trees"),(AdaBoostClassifier(), "AdaBoost"),(GradientBoostingClassifier(), "GB-Trees")]
@@ -415,6 +452,7 @@ if __name__== '__main__':
     #plot of the results 
     plt.figure(3)
     plt.title("accuracy depending on the max_depth value")
+    plt.ylim(ymax = 0.925, ymin = 0.895)
     line1 = plt.plot(depth_range,tes_scores5,'c',label="500 estimators");
     line2 = plt.plot(depth_range,tes_scores4,'k',label="1000 estimators");
     line3 = plt.plot(depth_range,tes_scores2,'r',label="20 estimators");
@@ -427,7 +465,7 @@ if __name__== '__main__':
     
     #on the plot we can see that the 500 estimators curve is slightly above the 1000 one
     #so the best estimators number will be < 1000
-        #features selection
+    #features selection
     x_train_selected = np.array(featureSelector(support,x_train))
     x_test_selected = np.array(featureSelector(support, x_test))
     
@@ -446,7 +484,7 @@ if __name__== '__main__':
         scoreXGB4.append(100*np.mean(cross_val_score(clf_test4, x_train_selected, y_train, cv=5, scoring='roc_auc'))) 
     plt.figure(4)
     plt.title("accuracy depending on the nb_estimators, max_depth=%d"%best_depth)
-    plt.plot(est_range4,scoreXGB4)
+    plt.plot(est_range4[5:],scoreXGB4[5:])
     
     
     # we can see on the plot that we were right 
@@ -463,7 +501,6 @@ if __name__== '__main__':
         submit(y_f2,"XGboos_est_v2_%d" %value)
         scoreXGB2.append(100*np.mean(cross_val_score(clf_test4, x_train_selected, y_train, cv=5, scoring='roc_auc')))
     plt.figure(5)
-    #plt.title("accuracy depending on the nb_estimators, max_depth=%d"%best_depth)
     plt.plot(est_range2,scoreXGB2)
     
     #now we select the file ith the best accuracy and submit it
@@ -479,46 +516,37 @@ if __name__== '__main__':
     
     
     
-    """ part 6 aka question 7 : deep learning """
+    """ VI. Neural network """
     
     
         
   
-    nodes_range = [50,110,100]
-    epoch_range = [5,10]
-    batch_range = [10,20]
+
     
     
     
-    # Add layers one at the time. Each with 100 nodes.
+    # Add layers one at the time. 
+    nodes_range = [50,100,150,200,250]
+    epoch_range = [10,15,20,25,30,35,40]
+    batch_range = [1,2,3,4,5,6,7,8,9,10]
     result_per_nodes = []
     for nb_nodes in nodes_range :
-        
         clf_keras = Sequential() 
         clf_keras.add(Dense(nb_nodes, input_dim=X_train2.shape[1], activation = "sigmoid"))
         clf_keras.add(Dense(nb_nodes, activation = "sigmoid"))
         clf_keras.add(Dense(nb_nodes, activation = "sigmoid"))
         clf_keras.add(Dense(nb_nodes, activation = "sigmoid"))
-        #clf_keras.add(Dense(500, activation = "sigmoid"))
         clf_keras.add(Dense(1, activation = "sigmoid")) 
-        # The code is compiled to CUDA or C++
         clf_keras.compile(loss="mean_squared_error", optimizer="sgd")
         result = []
         for epoch_value in epoch_range:
-            score = []
             roc_score = []
-            #ind_max_batch = 0; max_batch = 0; counter_batch = -1
             for batch_value in batch_range:
-                #counter_batch += 1 
                 clf_keras.fit(X_train2, y_train2, nb_epoch=epoch_value, batch_size=batch_value) # takes a few seconds
                 keras_pred = clf_keras.predict_proba(X_test2)
-                score.append(100*(1-clf_keras.evaluate(X_test2, y_test2, verbose=1)))
+                submit(keras_pred[:,0],"NN_params_%f_%f_%f"%(nb_nodes,epoch_value,batch_value))
                 roc_value = 100*roc_auc_score(y_test2,keras_pred)
-#                if max_batch < roc_value:
-#                    max_batch = roc_value
-#                    #ind_max_batch = counter_batch
                 roc_score.append(roc_value)
-                #keras_pred2 = clf_keras.predict_proba(x_test_selected)
             result.append(roc_score)
         result_per_nodes.append(result)
         
@@ -534,39 +562,19 @@ if __name__== '__main__':
         max_score2.append(max_score1[ind_best_epoch])
     ind_best_node = returnIndexOfMax(max_score2)
     
-    #get the node with the epoch with the best score
+    #get the number of epoch of that node which give this best score
     max_score1 = []
     for k in range(len(epoch_range)):
        ind_best_batch =  returnIndexOfMax(result_per_nodes[ind_best_node][k][:])
        max_score1.append(result_per_nodes[ind_best_node][k][ind_best_batch])
     ind_best_epoch = returnIndexOfMax(max_score1)
     
-    
+    #get the batch_size corresponding
     ind_best_batch = returnIndexOfMax(result_per_nodes[ind_best_node][ind_best_epoch][:])
    
-    
     print ("the best parameter are : \n node : %d \n epoch : %d \n batch_size : %d"%(nodes_range[ind_best_node],epoch_range[ind_best_epoch],batch_range[ind_best_batch]))
-    
     print("\n with the score %f"%(result_per_nodes[ind_best_node][ind_best_epoch][ind_best_batch]))
  
     
     
     
-    clf_keras2 = Sequential()
-    clf_keras2.add(Dense(100, input_dim=X_train2.shape[1], activation = "sigmoid"))
-    clf_keras2.add(Dense(100, activation = "sigmoid"))
-    clf_keras2.add(Dense(100, activation = "sigmoid"))
-    clf_keras2.add(Dense(100, activation = "sigmoid"))
-        #clf_keras.add(Dense(500, activation = "sigmoid"))
-    clf_keras2.add(Dense(1, activation = "sigmoid")) 
-        # The code is compiled to CUDA or C++
-    clf_keras2.compile(loss="mean_squared_error", optimizer="sgd")
-    clf_keras2.fit(X_train2, y_train2, nb_epoch=10, batch_size=20) # takes a few seconds
-    keras_pred = clf_keras2.predict_proba(X_test2)
-    score.append(100*(1-clf_keras2.evaluate(X_test2, y_test2, verbose=1)))
-    roc_value = 100*roc_auc_score(y_test2,keras_pred)
-    
-    
-    print("\n score clf1 %f \n score clf2 %f"%(result_per_nodes[ind_best_node][ind_best_epoch][ind_best_batch],roc_value))
-
-    submit(keras_pred2[:,0],"NN_test")
